@@ -1,1 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Tracker</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f7f7f5;
+    color: #1f1f1e;
+    padding: 24px;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  h1 { font-size: 22px; margin: 0; }
+  .sub { color: #6b6b68; font-size: 13px; margin-top: 4px; max-width: 480px; }
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    background: #cc785c;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #b5674e; }
+  .btn.secondary {
+    background: transparent;
+    color: #6b6b68;
+    border: 1px solid #d8d6d0;
+  }
+  .btn.secondary:hover { background: #eeece6; }
+  .btn.danger { background: #b3413a; }
+  .btn.danger:hover { background: #96342e; }
+  .btn.small { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
 
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat {
+    background: #fff;
+    border: 1px solid #e8e6e0;
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .stat .num { font-size: 20px; font-weight: 700; }
+  .stat .label { font-size: 12px; color: #6b6b68; margin-top: 2px; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: #4a4a47;
+  }
+  .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+  .example-banner {
+    background: #fff8e1;
+    border: 1px solid #f2c94c;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #6b5900;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid #e8e6e0;
+    border-radius: 12px;
+    padding: 4px;
+    margin-top: 28px;
+  }
+  table { border-collapse: separate; border-spacing: 6px; width: 100%; }
+  th, td { text-align: left; vertical-align: top; }
+
+  .company-col-head, .company-cell {
+    width: 190px;
+    min-width: 190px;
+  }
+  .stage-col-head, .cell {
+    width: 200px;
+    min-width: 200px;
+  }
+  .add-stage-head { width: 78px; min-width: 78px; }
+
+  .stage-col-head {
+    min-height: 4px;
+  }
+
+  .add-stage-btn {
+    width: 100%;
+    height: 100%;
+    min-height: 34px;
+    border-radius: 8px;
+    border: 1px dashed #c9c6be;
+    background: #fafaf8;
+    color: #8a8a86;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 0 8px;
+  }
+  .add-stage-btn:hover { background: #f0efe9; }
+
+  .add-company-btn {
+    width: 100%;
+    height: 100%;
+    min-height: 34px;
+    border-radius: 8px;
+    border: none;
+    background: #2f6fed;
+    color: #fff;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .add-company-btn:hover { background: #2559c9; }
+
+  .company-cell {
+    background: #f5f4ef;
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .company-name-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+  .company-name { font-weight: 700; font-size: 14px; cursor: pointer; }
+  .company-name:hover { text-decoration: underline; }
+  .company-role { font-size: 11px; color: #6b6b68; margin-top: 2px; }
+
+  .progress-bar { display: flex; gap: 3px; margin-top: 8px; }
+  .progress-seg { flex: 1; height: 6px; border-radius: 3px; background: #e2e0d9; }
+  .progress-seg.status-waiting { background: #f2c94c; }
+  .progress-seg.status-scheduled { background: #4285f4; }
+  .progress-seg.status-completed { background: #34a853; }
+  .progress-seg.status-offer { background: #7e57c2; }
+  .progress-seg.status-rejected { background: #d93025; }
+
+  .cell {
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    border: 1.5px dashed #d8d6d0;
+    background: #fcfcfb;
+    min-height: 58px;
+  }
+  .cell:hover { filter: brightness(0.97); }
+  .cell.empty { display: flex; align-items: center; justify-content: center; color: #b0aea8; font-size: 18px; }
+  .cell.blank { border: none; background: transparent; cursor: default; min-height: 0; }
+
+  @keyframes just-added-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(204, 120, 92, 0); }
+    25% { box-shadow: 0 0 0 4px rgba(204, 120, 92, 0.55); }
+    50% { box-shadow: 0 0 0 0 rgba(204, 120, 92, 0); }
+    75% { box-shadow: 0 0 0 4px rgba(204, 120, 92, 0.55); }
+  }
+  .just-added { animation: just-added-pulse 1.1s ease-in-out 2; }
+
+  .cell.status-waiting { background: #fff8e1; border: 1.5px solid #f2c94c; }
+  .cell.status-scheduled { background: #e8f0fe; border: 1.5px solid #4285f4; }
+  .cell.status-completed { background: #e6f4ea; border: 1.5px solid #34a853; }
+  .cell.status-rejected { background: #fdecea; border: 1.5px solid #d93025; }
+  .cell.status-offer { background: #ede7f6; border: 1.5px solid #7e57c2; }
+
+  .cell-round-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1f1f1e;
+    margin-bottom: 5px;
+    line-height: 1.25;
+  }
+
+  .cell-status-label {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.65);
+  }
+  .status-waiting .cell-status-label { color: #8a6d00; }
+  .status-scheduled .cell-status-label { color: #1a56c4; }
+  .status-completed .cell-status-label { color: #1e7e34; }
+  .status-rejected .cell-status-label { color: #a52714; }
+  .status-offer .cell-status-label { color: #5e35b1; }
+  .cell.empty .cell-round-name { display: none; }
+
+  .cell-when { font-size: 11px; color: #4a4a47; margin-top: 4px; font-weight: 600; }
+  .cell-notes { font-size: 12px; color: #4a4a47; margin-top: 4px; line-height: 1.35; }
+
+  .add-company-row td { padding-top: 4px; }
+
+  .empty-state {
+    text-align: center;
+    color: #8a8a86;
+    padding: 50px 20px;
+  }
+
+  .cal-section {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 16px;
+  }
+  @media (max-width: 760px) { .cal-section { grid-template-columns: 1fr; } }
+
+  .cal-card {
+    background: #fff;
+    border: 1px solid #e8e6e0;
+    border-radius: 12px;
+    padding: 10px;
+    max-height: 210px;
+    overflow-y: auto;
+  }
+  .cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 7px;
+  }
+  .cal-head h3 { margin: 0; font-size: 13px; }
+  .cal-nav-btn {
+    border: 1px solid #d8d6d0;
+    background: #fff;
+    border-radius: 6px;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #4a4a47;
+  }
+  .cal-nav-btn:hover { background: #f2f0e9; }
+  .cal-nav { display: flex; gap: 4px; align-items: center; }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .cal-dow {
+    font-size: 9px;
+    font-weight: 700;
+    color: #9a9793;
+    text-align: center;
+    padding-bottom: 2px;
+    text-transform: uppercase;
+  }
+  .cal-day {
+    min-height: 30px;
+    border-radius: 6px;
+    border: 1px solid #eeece6;
+    padding: 2px 3px;
+    font-size: 10px;
+    color: #4a4a47;
+  }
+  .cal-day.blank { border: none; }
+  .cal-day.today { border: 1.5px solid #cc785c; background: #fff6f2; }
+  .cal-day .cal-day-num { font-weight: 700; font-size: 10px; }
+  .cal-dots { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
+  .cal-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .cal-dot.status-waiting { background: #f2c94c; }
+  .cal-dot.status-scheduled { background: #4285f4; }
+  .cal-dot.status-completed { background: #34a853; }
+  .cal-dot.status-offer { background: #7e57c2; }
+  .cal-dot.status-rejected { background: #d93025; }
+
+  .upcoming-list { display: flex; flex-direction: column; gap: 5px; }
+  .upcoming-item {
+    border: 1px solid #eeece6;
+    border-radius: 7px;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  .upcoming-item .u-date { font-weight: 700; color: #cc785c; }
+  .upcoming-item .u-company { font-weight: 700; margin-top: 1px; }
+  .upcoming-item .u-round { color: #6b6b68; }
+  .upcoming-empty { color: #8a8a86; font-size: 11px; padding: 6px 2px; }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+    overflow-y: auto;
+    z-index: 10;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 24px 24px;
+    width: 100%;
+    max-width: 420px;
+  }
+  .modal h2 { margin: 0 0 16px; font-size: 17px; }
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4a4a47;
+    margin-bottom: 5px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid #d8d6d0;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .modal-actions .right { display: flex; gap: 8px; }
+  textarea { resize: vertical; min-height: 50px; }
+  footer.site-footer {
+    text-align: center;
+    color: #9a9793;
+    font-size: 11px;
+    margin-top: 28px;
+  }
+  footer.site-footer a { color: #8a8a86; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Pipeline Tracker</h1>
+      <div class="sub">One row per company, one column per round &mdash; track any application/interview pipeline at a glance. All data stays in your browser; nothing is sent anywhere.</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn secondary small" id="btnExport">Export JSON</button>
+      <button class="btn secondary small" id="btnImport">Import JSON</button>
+      <input type="file" id="fileImport" accept="application/json" style="display:none;">
+      <button class="btn danger small" id="btnClear">Clear all</button>
+    </div>
+  </header>
+
+  <div id="exampleBanner" class="example-banner" style="display:none;">
+    <span>You're looking at example data. Edit or delete these cards, or click <strong>Clear all</strong> to start fresh.</span>
+    <button class="btn secondary small" id="btnDismissExample">Got it</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:#f2c94c"></span>Waiting to hear back</span>
+    <span><span class="dot" style="background:#4285f4"></span>Scheduled</span>
+    <span><span class="dot" style="background:#34a853"></span>Completed</span>
+    <span><span class="dot" style="background:#7e57c2"></span>Offer</span>
+    <span><span class="dot" style="background:#d93025"></span>Rejected</span>
+  </div>
+
+  <div class="cal-section">
+    <div class="cal-card">
+      <div class="cal-head">
+        <h3 id="calLabel"></h3>
+        <div class="cal-nav">
+          <button class="cal-nav-btn" id="calPrev">‹</button>
+          <button class="cal-nav-btn" id="calToday" title="Jump to today" style="width:auto; padding:0 8px;">Today</button>
+          <button class="cal-nav-btn" id="calNext">›</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="cal-card">
+      <div class="cal-head"><h3>Upcoming</h3></div>
+      <div class="upcoming-list" id="upcomingList"></div>
+    </div>
+  </div>
+
+  <div class="table-scroll">
+    <table id="table"></table>
+  </div>
+
+  <footer class="site-footer">Pipeline Tracker &mdash; single-file, no backend, your data never leaves this browser.</footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modalInner"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'pipeline_tracker_v1';
+const EXAMPLE_FLAG_KEY = 'pipeline_tracker_is_example_v1';
+
+function uid(prefix) { return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function exampleState() {
+  const sC = { id: uid('s') }, sR = { id: uid('s') }, sO = { id: uid('s') }, sD = { id: uid('s') };
+  return {
+    stages: [sC, sR, sO, sD],
+    companies: [
+      {
+        id: uid('c'), name: 'Acme Corp', role: 'Senior Engineer',
+        cells: {
+          [sC.id]: { name: 'Recruiter Screen', status: 'completed', date: '', time: '', notes: 'Went well, moved to onsite.' },
+          [sR.id]: { name: 'Onsite Loop', status: 'waiting', date: '', time: '', notes: 'Waiting to hear back on next steps.' }
+        }
+      },
+      {
+        id: uid('c'), name: 'Globex Inc', role: 'Platform Engineer',
+        cells: {
+          [sC.id]: { name: 'Technical Screen', status: 'scheduled', date: '', time: '', notes: 'Bring 2-3 project examples.' }
+        }
+      }
+    ]
+  };
+}
+
+// If a company's filled rounds ended up scattered with gaps between them,
+// pack that company's own cards back onto the earliest columns, in their
+// existing left-to-right order. Only ever moves a company's cells among its
+// OWN empty slots.
+function compactCompanyCells(s) {
+  let changed = false;
+  s.companies.forEach(comp => {
+    const filled = s.stages
+      .map(stage => comp.cells[stage.id])
+      .filter(cell => cell && cell.status);
+    const targetIds = s.stages.slice(0, filled.length).map(stage => stage.id);
+    const newCells = {};
+    filled.forEach((cell, i) => { newCells[targetIds[i]] = cell; });
+    const currentKeys = Object.keys(comp.cells).filter(k => comp.cells[k] && comp.cells[k].status).sort();
+    const targetKeys = targetIds.slice().sort();
+    if (JSON.stringify(currentKeys) !== JSON.stringify(targetKeys)) changed = true;
+    comp.cells = newCells;
+  });
+  if (changed) saveState(s);
+  return s;
+}
+
+function isValidState(s) {
+  return s && Array.isArray(s.stages) && Array.isArray(s.companies);
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (isValidState(parsed)) return compactCompanyCells(parsed);
+    }
+  } catch (e) {}
+  const seeded = exampleState();
+  localStorage.setItem(EXAMPLE_FLAG_KEY, '1');
+  saveState(seeded);
+  return seeded;
+}
+
+function saveState(s) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+}
+
+function isShowingExample() {
+  return localStorage.getItem(EXAMPLE_FLAG_KEY) === '1';
+}
+function clearExampleFlag() {
+  localStorage.removeItem(EXAMPLE_FLAG_KEY);
+}
+
+let state = loadState();
+
+const overlay = document.getElementById('overlay');
+const modalInner = document.getElementById('modalInner');
+const tableEl = document.getElementById('table');
+const statsEl = document.getElementById('stats');
+const calGridEl = document.getElementById('calGrid');
+const calLabelEl = document.getElementById('calLabel');
+const upcomingListEl = document.getElementById('upcomingList');
+const exampleBannerEl = document.getElementById('exampleBanner');
+
+const now = new Date();
+let calYear = now.getFullYear();
+let calMonth = now.getMonth();
+
+overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+document.getElementById('calPrev').onclick = () => { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); };
+document.getElementById('calNext').onclick = () => { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); };
+document.getElementById('calToday').onclick = () => { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); renderCalendar(); };
+
+document.getElementById('btnDismissExample').onclick = () => { clearExampleFlag(); render(); };
+
+document.getElementById('btnExport').onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `pipeline-tracker-export-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
+const fileImportEl = document.getElementById('fileImport');
+document.getElementById('btnImport').onclick = () => fileImportEl.click();
+fileImportEl.addEventListener('change', () => {
+  const file = fileImportEl.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (!isValidState(parsed)) throw new Error('File is missing "stages"/"companies" arrays.');
+      if (!confirm('Import will replace all current data in this browser. Continue?')) return;
+      state = compactCompanyCells(parsed);
+      clearExampleFlag();
+      saveState(state);
+      render();
+    } catch (err) {
+      alert('Could not import this file: ' + err.message);
+    } finally {
+      fileImportEl.value = '';
+    }
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('btnClear').onclick = () => {
+  if (!confirm('This deletes every company and round in this browser. Export a backup first if you want to keep it. Continue?')) return;
+  state = { stages: [], companies: [] };
+  clearExampleFlag();
+  saveState(state);
+  render();
+};
+
+function closeModal() { overlay.classList.remove('open'); modalInner.innerHTML = ''; }
+function openModal() { overlay.classList.add('open'); }
+
+function escapeHtml(str) {
+  return (str || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function escapeAttr(str) { return escapeHtml(str).replace(/`/g, '&#96;'); }
+
+const STATUS_LABELS = {
+  waiting: 'Waiting to hear back',
+  scheduled: 'Scheduled',
+  completed: 'Completed',
+  rejected: 'Rejected',
+  offer: 'Offer'
+};
+
+/* ---------- Company modal ---------- */
+function openAddCompanyModal() {
+  modalInner.innerHTML = `
+    <h2>Add company</h2>
+    <div class="field"><label>Company *</label><input id="mCompanyName" placeholder="e.g. Acme Corp"></div>
+    <div class="field"><label>Role</label><input id="mCompanyRole" placeholder="e.g. Senior PM"></div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="right">
+        <button class="btn secondary" id="mCancel">Cancel</button>
+        <button class="btn" id="mSave">Add</button>
+      </div>
+    </div>
+  `;
+  openModal();
+  document.getElementById('mCancel').onclick = closeModal;
+  document.getElementById('mSave').onclick = () => {
+    const name = document.getElementById('mCompanyName').value.trim();
+    if (!name) { alert('Company name is required.'); return; }
+    const role = document.getElementById('mCompanyRole').value.trim();
+    state.companies.push({ id: uid('c'), name, role, cells: {} });
+    clearExampleFlag();
+    saveState(state);
+    closeModal();
+    render();
+  };
+  document.getElementById('mCompanyName').focus();
+}
+
+function openEditCompanyModal(companyId) {
+  const comp = state.companies.find(c => c.id === companyId);
+  if (!comp) return;
+  modalInner.innerHTML = `
+    <h2>Edit company</h2>
+    <div class="field"><label>Company *</label><input id="mCompanyName" value="${escapeAttr(comp.name)}"></div>
+    <div class="field"><label>Role</label><input id="mCompanyRole" value="${escapeAttr(comp.role || '')}"></div>
+    <div class="modal-actions">
+      <button class="btn danger" id="mDelete">Delete company</button>
+      <div class="right">
+        <button class="btn secondary" id="mCancel">Cancel</button>
+        <button class="btn" id="mSave">Save</button>
+      </div>
+    </div>
+  `;
+  openModal();
+  document.getElementById('mCancel').onclick = closeModal;
+  document.getElementById('mDelete').onclick = () => {
+    if (!confirm(`Remove ${comp.name} and all its rounds?`)) return;
+    state.companies = state.companies.filter(c => c.id !== companyId);
+    clearExampleFlag();
+    saveState(state);
+    closeModal();
+    render();
+  };
+  document.getElementById('mSave').onclick = () => {
+    const name = document.getElementById('mCompanyName').value.trim();
+    if (!name) { alert('Company name is required.'); return; }
+    comp.name = name;
+    comp.role = document.getElementById('mCompanyRole').value.trim();
+    clearExampleFlag();
+    saveState(state);
+    closeModal();
+    render();
+  };
+}
+
+/* ---------- Stage (column) management ---------- */
+// Adds a new round column and immediately opens the cell editor for the
+// lane that was clicked, so the round's name/status/date all live on the card itself.
+function addRoundForCompany(companyId) {
+  const stage = { id: uid('s') };
+  state.stages.push(stage);
+  openCellModal(companyId, stage.id, /* isNew */ true);
+}
+
+/* ---------- Cell (round card) modal ---------- */
+function openCellModal(companyId, stageId, isNew) {
+  const comp = state.companies.find(c => c.id === companyId);
+  const stage = state.stages.find(s => s.id === stageId);
+  if (!comp || !stage) return;
+  const cell = comp.cells[stageId] || { name: '', status: '', date: '', time: '', notes: '' };
+  modalInner.innerHTML = `
+    <h2>${escapeHtml(comp.name)}${cell.name ? ' &mdash; ' + escapeHtml(cell.name) : ''}</h2>
+    <div class="field"><label>Round name *</label><input id="mRoundName" placeholder="e.g. Technical Round" value="${escapeAttr(cell.name || '')}"></div>
+    <div class="field">
+      <label>Status</label>
+      <select id="mStatus">
+        <option value="" ${!cell.status ? 'selected' : ''}>Not started</option>
+        <option value="waiting" ${cell.status === 'waiting' ? 'selected' : ''}>Waiting to hear back</option>
+        <option value="scheduled" ${cell.status === 'scheduled' ? 'selected' : ''}>Scheduled</option>
+        <option value="completed" ${cell.status === 'completed' ? 'selected' : ''}>Completed</option>
+        <option value="offer" ${cell.status === 'offer' ? 'selected' : ''}>Offer</option>
+        <option value="rejected" ${cell.status === 'rejected' ? 'selected' : ''}>Rejected</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Date</label><input type="date" id="mDate" value="${escapeAttr(cell.date || '')}"></div>
+      <div class="field"><label>Time</label><input type="time" id="mTime" value="${escapeAttr(cell.time || '')}"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="mNotes" placeholder="e.g. Availability submitted, waiting confirmation">${escapeHtml(cell.notes || '')}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn danger" id="mClear">${isNew ? 'Discard' : 'Clear card'}</button>
+      <div class="right">
+        <button class="btn secondary" id="mCancel">Cancel</button>
+        <button class="btn" id="mSave">Save</button>
+      </div>
+    </div>
+  `;
+  openModal();
+  const discardNewStageIfUnsaved = () => {
+    if (isNew) state.stages = state.stages.filter(s => s.id !== stageId);
+  };
+  document.getElementById('mCancel').onclick = () => { discardNewStageIfUnsaved(); closeModal(); };
+  document.getElementById('mClear').onclick = () => {
+    delete comp.cells[stageId];
+    discardNewStageIfUnsaved();
+    clearExampleFlag();
+    saveState(state);
+    closeModal();
+    render();
+  };
+  document.getElementById('mSave').onclick = () => {
+    const name = document.getElementById('mRoundName').value.trim();
+    if (!name) { alert('Round name is required.'); return; }
+    const status = document.getElementById('mStatus').value;
+    const date = document.getElementById('mDate').value;
+    const time = document.getElementById('mTime').value;
+    const notes = document.getElementById('mNotes').value.trim();
+    comp.cells[stageId] = { name, status: status || 'waiting', date, time, notes };
+    clearExampleFlag();
+    saveState(state);
+    closeModal();
+    render();
+  };
+  document.getElementById('mRoundName').focus();
+}
+
+/* ---------- Render ---------- */
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function fmtTime(time) {
+  if (!time) return '';
+  const d = new Date('2000-01-01T' + time);
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function fmtWhen(date, time) {
+  if (!date) return '';
+  if (date === todayStr()) return 'Today' + (time ? ' · ' + fmtTime(time) : '');
+  const d = new Date(date + 'T' + (time || '00:00'));
+  let s = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  if (time) s += ' · ' + fmtTime(time);
+  return s;
+}
+
+function computeStats() {
+  let completed = 0, waiting = 0, scheduled = 0, offers = 0, rejected = 0;
+  state.companies.forEach(c => {
+    Object.values(c.cells).forEach(cell => {
+      if (cell.status === 'completed') completed++;
+      else if (cell.status === 'waiting') waiting++;
+      else if (cell.status === 'scheduled') scheduled++;
+      else if (cell.status === 'offer') offers++;
+      else if (cell.status === 'rejected') rejected++;
+    });
+  });
+  return { totalCompanies: state.companies.length, completed, waiting, scheduled, offers, rejected };
+}
+
+function render() {
+ try {
+  exampleBannerEl.style.display = isShowingExample() ? 'flex' : 'none';
+
+  const stats = computeStats();
+  statsEl.innerHTML = `
+    <div class="stat"><div class="num">${stats.totalCompanies}</div><div class="label">Companies</div></div>
+    <div class="stat"><div class="num">${stats.waiting}</div><div class="label">Waiting to hear back</div></div>
+    <div class="stat"><div class="num">${stats.scheduled}</div><div class="label">Scheduled</div></div>
+    <div class="stat"><div class="num">${stats.completed}</div><div class="label">Rounds completed</div></div>
+    <div class="stat"><div class="num">${stats.offers}</div><div class="label">Offers</div></div>
+  `;
+
+  if (state.companies.length === 0) {
+    tableEl.innerHTML = `<tr><td class="empty-state">No companies yet.<br><button class="btn" style="margin-top:10px;" onclick="openAddCompanyModal()">+ Add company</button></td></tr>`;
+    renderCalendar();
+    renderUpcoming();
+    return;
+  }
+
+  let head = `<tr><th class="company-col-head"><button class="add-company-btn" onclick="openAddCompanyModal()" title="Add company">Add Company</button></th>`;
+  state.stages.forEach(() => {
+    head += `<th class="stage-col-head"></th>`;
+  });
+  head += `<th></th></tr>`;
+
+  let rows = '';
+  state.companies.forEach(comp => {
+    const progressSegs = state.stages.map(stage => {
+      const c = comp.cells[stage.id];
+      const cls = c && c.status ? 'status-' + c.status : '';
+      const label = c && c.status ? `${c.name || 'Round'}: ${STATUS_LABELS[c.status] || c.status}` : 'Not started';
+      return `<span class="progress-seg ${cls}" title="${escapeAttr(label)}"></span>`;
+    }).join('');
+    rows += `<tr><th class="company-cell">
+        <div class="company-name-row">
+          <div>
+            <div class="company-name" onclick="openEditCompanyModal('${comp.id}')" title="Click to edit">${escapeHtml(comp.name)}</div>
+            ${comp.role ? `<div class="company-role">${escapeHtml(comp.role)}</div>` : ''}
+          </div>
+        </div>
+        ${state.stages.length ? `<div class="progress-bar">${progressSegs}</div>` : ''}
+      </th>`;
+
+    // Only ever show one "+" invitation per lane: the first empty slot in an
+    // existing column, or (if every existing column is filled) the trailing
+    // "add a new round" button. Never both at once.
+    let shownEmptySlot = false;
+    state.stages.forEach(stage => {
+      const cell = comp.cells[stage.id];
+      if (!cell || !cell.status) {
+        if (!shownEmptySlot) {
+          rows += `<td class="cell empty" onclick="openCellModal('${comp.id}', '${stage.id}')" title="Click to add">+</td>`;
+          shownEmptySlot = true;
+        } else {
+          rows += `<td class="cell blank"></td>`;
+        }
+      } else {
+        const when = fmtWhen(cell.date, cell.time);
+        rows += `<td class="cell status-${cell.status}" onclick="openCellModal('${comp.id}', '${stage.id}')">
+            ${cell.name ? `<div class="cell-round-name">${escapeHtml(cell.name)}</div>` : ''}
+            <div class="cell-status-label">${STATUS_LABELS[cell.status] || cell.status}</div>
+            ${when ? `<div class="cell-when">${when}</div>` : ''}
+            ${cell.notes ? `<div class="cell-notes">${escapeHtml(cell.notes)}</div>` : ''}
+          </td>`;
+      }
+    });
+    rows += shownEmptySlot
+      ? `<td></td></tr>`
+      : `<td class="add-stage-head"><button class="add-stage-btn" onclick="addRoundForCompany('${comp.id}')" title="Add another round for ${escapeAttr(comp.name)}">+</button></td></tr>`;
+  });
+
+  tableEl.innerHTML = head + rows;
+
+  renderCalendar();
+  renderUpcoming();
+ } catch (err) {
+  console.error('render() failed:', err);
+ }
+}
+
+/* ---------- Calendar & upcoming ---------- */
+function collectEvents() {
+  const events = [];
+  state.companies.forEach(comp => {
+    state.stages.forEach(stage => {
+      const cell = comp.cells[stage.id];
+      if (cell && cell.date) {
+        events.push({
+          date: cell.date,
+          time: cell.time || '',
+          status: cell.status || '',
+          company: comp.name,
+          round: cell.name || 'Round',
+          notes: cell.notes || ''
+        });
+      }
+    });
+  });
+  return events;
+}
+
+function renderCalendar() {
+  const events = collectEvents();
+  const eventsByDate = {};
+  events.forEach(e => {
+    if (!eventsByDate[e.date]) eventsByDate[e.date] = [];
+    eventsByDate[e.date].push(e);
+  });
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  calLabelEl.textContent = monthNames[calMonth] + ' ' + calYear;
+
+  const firstOfMonth = new Date(calYear, calMonth, 1);
+  const startDow = firstOfMonth.getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = todayStr();
+
+  let html = '';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => { html += `<div class="cal-dow">${d}</div>`; });
+
+  for (let i = 0; i < startDow; i++) html += `<div class="cal-day blank"></div>`;
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    const dayEvents = eventsByDate[dateStr] || [];
+    const isToday = dateStr === today;
+    const titleAttr = dayEvents.length
+      ? dayEvents.map(e => `${e.company} - ${e.round} (${STATUS_LABELS[e.status] || e.status})`).join(' | ')
+      : '';
+    html += `<div class="cal-day ${isToday ? 'today' : ''}" ${titleAttr ? `title="${escapeAttr(titleAttr)}"` : ''}>
+        <div class="cal-day-num">${day}</div>
+        ${dayEvents.length ? `<div class="cal-dots">${dayEvents.map(e => `<span class="cal-dot status-${e.status}"></span>`).join('')}</div>` : ''}
+      </div>`;
+  }
+
+  calGridEl.innerHTML = html;
+}
+
+function renderUpcoming() {
+  const events = collectEvents();
+  const today = todayStr();
+  const upcoming = events
+    .filter(e => e.date >= today)
+    .sort((a, b) => (a.date + (a.time || '00:00')).localeCompare(b.date + (b.time || '00:00')));
+
+  if (upcoming.length === 0) {
+    upcomingListEl.innerHTML = `<div class="upcoming-empty">No upcoming dates. Add a date to a round to see it here.</div>`;
+    return;
+  }
+
+  upcomingListEl.innerHTML = upcoming.map(e => `
+    <div class="upcoming-item">
+      <div class="u-date">${fmtWhen(e.date, e.time)}</div>
+      <div class="u-company">${escapeHtml(e.company)}</div>
+      <div class="u-round">${escapeHtml(e.round)} &middot; ${STATUS_LABELS[e.status] || e.status}</div>
+    </div>
+  `).join('');
+}
+
+render();
+</script>
+</body>
+</html>
